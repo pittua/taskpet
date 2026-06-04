@@ -436,12 +436,12 @@ export default function HomeScreen() {
 
         {/* Chat Modal */}
         <Modal visible={isChatOpen} animationType="slide" transparent statusBarTranslucent onRequestClose={() => setIsChatOpen(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={[styles.modalOverlay, { justifyContent: 'flex-end' }]}
+          >
             <Pressable style={{ flex: 1 }} onPress={() => setIsChatOpen(false)} />
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={[styles.chatDock, { height: isChatExpanded ? '85%' : '60%', backgroundColor: chatBg, borderColor: border }]}
-            >
+            <View style={[styles.chatDock, { height: isChatExpanded ? '85%' : '60%', backgroundColor: chatBg, borderColor: border }]}>
               <SafeAreaView edges={['bottom', 'left', 'right']} style={{ flex: 1 }}>
                 <View style={{ flex: 1, padding: 15 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -501,8 +501,8 @@ export default function HomeScreen() {
                   </View>
                 </View>
               </SafeAreaView>
-            </KeyboardAvoidingView>
-          </View>
+            </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Settings Modal */}
@@ -515,7 +515,15 @@ export default function HomeScreen() {
                   <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>保存して閉じる</ThemedText>
                 </Pressable>
               </View>
-              <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}>
+              <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              >
+              <ScrollView
+                contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+              >
                 <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
                   <ThemedText type="subtitle">Gemini APIキー</ThemedText>
                   <TextInput
@@ -580,6 +588,7 @@ export default function HomeScreen() {
                   </View>
                 </View>
               </ScrollView>
+              </KeyboardAvoidingView>
             </SafeAreaView>
           </ThemedView>
         </Modal>
@@ -600,5 +609,5 @@ const styles = StyleSheet.create({
   toast: { position: 'absolute', top: 60, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, elevation: 10, zIndex: 100 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center' },
   detailBox: { margin: 20, padding: 20, borderRadius: 20, borderWidth: 1 },
-  chatDock: { position: 'absolute', bottom: 0, width: '100%', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderBottomWidth: 0 },
+  chatDock: { width: '100%', borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, borderBottomWidth: 0 },
 });

@@ -62,7 +62,7 @@ export function useChat({ genAI, effPrompt, characterErrorMsg, aiName, greetings
     setIsSending(true);
     try {
       const sys = `【設定】${effPrompt}\n【現在】${new Date().toLocaleString('ja-JP')}\n【タスク】\n${taskSum}\n${hiddenSysPrompt || 'タスク状況を踏まえて自然に会話して。'}`;
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sys });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: sys });
 
       const safeHistory: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
       let expectedRole: 'user' | 'model' = 'user';
@@ -105,7 +105,7 @@ export function useChat({ genAI, effPrompt, characterErrorMsg, aiName, greetings
     setDetailComment('アドバイスを考え中...');
     try {
       const sys = `【設定】${effPrompt}\nユーザーがタスク詳細を開きました。`;
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sys });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: sys });
       const res = await model.generateContent([
         { text: `タスク「${t.text}」、備考「${t.memo || 'なし'}」。このタスクについて、1〜2文で専用のアドバイスやコメントをしてください。` },
       ]);

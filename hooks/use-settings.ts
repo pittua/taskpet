@@ -85,7 +85,7 @@ function useSettingsState() {
     if (!genAI) return;
     try {
       const sys = `【設定】${prompt}\n上記の設定になりきって、以下の指示に従って出力してください。`;
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: sys });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: sys });
 
       const [resPraise, resError, resGreet] = await Promise.all([
         model.generateContent([{ text: 'タスク完了時にかける短い褒め言葉（10文字以内）を5つ、カンマ(,)区切りで出力して。例: ナイス！,えらい！,すごい！,お疲れ様！,完璧！' }]),
