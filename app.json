@@ -21,7 +21,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.acrylic1025.myaiapp",
+      "package": "com.taskpet.app",
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"
@@ -53,10 +53,7 @@
       "reactCompiler": false
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "13fc1818-c9a4-45de-984b-d7682005e6ec"
-      }
+      "router": {}
     }
   }
 }
