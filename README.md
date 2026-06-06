@@ -1,50 +1,73 @@
-# Welcome to your Expo app 👋
+# taskpet 🐾
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**推しキャラ（AI）と一緒に進める、タスク管理アプリ。**
 
-## Get started
+自分だけの「推し」キャラクターを設定すると、タスクの完了を褒めてくれたり、相談に乗ってくれたり、タスクごとにアドバイスをくれます。AI には Google Gemini を使用し、データは端末内にのみ保存されます（バックエンド不要）。
 
-1. Install dependencies
+> Expo / React Native 製。Android 実機・エミュレータで動作します。
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+## ✨ 主な機能
 
-   ```bash
-   npx expo start
-   ```
+- **タスク管理** — 追加 / 編集 / 削除、メモ、期限、繰り返し（毎日・毎週）
+- **ドラッグ&ドロップ並び替え** — ハンドルをつかんで自由に並べ替え
+- **期限通知** — 指定時刻にぴったり通知（exact alarm 対応、アプリを閉じていても発火）
+- **推しキャラ設定** — 名前・アバター画像・性格（プロンプト）・テーマカラーをカスタマイズ
+- **AI チャット相談** — 推しキャラと会話。タスク状況を踏まえて応答
+- **タスク別アドバイス** — タスクごとに専用コメント。内容が変わらない限りキャッシュして再利用（API 節約）
+- **完了時の褒め＆デイリーレポート** — 完了するとキャラが褒めてくれる
+- **統計** — 今日の達成数・累計完了数（削除しても減らない／長押しでリセット）・完了率
 
-In the output, you'll find options to open the app in a
+## 🛠 技術スタック
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- [Expo](https://expo.dev) SDK 54 / React Native 0.81 / React 19
+- [expo-router](https://docs.expo.dev/router/introduction/)（ファイルベースルーティング）
+- [@google/generative-ai](https://www.npmjs.com/package/@google/generative-ai)（Gemini `gemini-2.5-flash`）
+- [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/)（通知・正確なアラーム）
+- [react-native-draglist](https://www.npmjs.com/package/react-native-draglist)（並び替え）
+- AsyncStorage によるローカル永続化（サーバー・ログイン不要）
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🔑 Gemini API キーについて
 
-## Get a fresh project
+このアプリは **各ユーザーが自分の Gemini API キーを用意** して使う設計です（キーはアプリに同梱されません。端末内にのみ保存されます）。
 
-When you're ready, run:
+1. [Google AI Studio](https://aistudio.google.com/app/apikey) で無料の API キーを取得
+2. アプリの **設定（⚙）画面** に貼り付けて保存
+
+> キーが未設定だと AI 機能（チャット・アドバイス・褒め）は動作しません。タスク管理機能だけなら未設定でも使えます。
+
+## 🚀 開発・ビルド手順
+
+> **注意:** カスタムネイティブモジュールを使うため、**Expo Go では動きません**。開発ビルド（dev client）が必要です。
+
+### 前提
+
+- Node.js（LTS 推奨）
+- Android Studio + Android SDK
+- JDK（Android Studio 同梱の JBR でも可）
+
+### 手順
 
 ```bash
-npm run reset-project
+# 1. クローン
+git clone https://github.com/pittua/taskpet.git
+cd taskpet
+
+# 2. 依存をインストール
+npm install
+
+# 3. Android 実機/エミュレータでビルド＆起動（android/ は自動生成されます）
+npx expo run:android
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+起動後、アプリの設定画面で Gemini API キーを入力してください。
 
-## Learn more
+## 📦 APK の入手（ビルド不要で使いたい人向け）
 
-To learn more about developing your project with Expo, look at the following resources:
+ビルド済みの APK は [Releases](https://github.com/pittua/taskpet/releases) から入手できます。
+ダウンロードして Android 端末にインストール（提供元不明アプリの許可が必要）してください。各自で Gemini API キーの設定が必要です。
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📄 ライセンス
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+[MIT License](./LICENSE) © 2026 pittua
