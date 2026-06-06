@@ -5,6 +5,10 @@ import { useSettings } from '@/hooks/use-settings';
 
 const DEFAULT_PRAISES = ['お疲れ様！', 'ナイス！', 'その調子！', 'えらい！', '素晴らしい！'];
 
+// 一意なタスクID。Date.now() だけだと同一ミリ秒の連続生成（追加・繰り返し生成）で
+// 衝突し得るため、ランダムなサフィックスを付ける。
+const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 // 完了ログ（日付別の完了数）のキー。ローカル日付ごとに 1 件。
 const dayKey = (d: Date | string | number) => new Date(d).toDateString();
 
@@ -82,7 +86,7 @@ function useTasksState() {
     setTasks(prev => {
       const next: TaskItem[] = [
         {
-          id: Date.now().toString(),
+          id: uid(),
           text: text.trim(),
           memo: '',
           done: false,
@@ -149,7 +153,7 @@ function useTasksState() {
         // 繰り返しタスクの完了: 次回分を生成する。
         // recurredChildId があれば生成済みなので二重生成しない。
         if (t.recurring !== 'none' && t.dueDate && !t.recurredChildId) {
-          const childId = Date.now().toString();
+          const childId = uid();
           t.recurredChildId = childId;
           next[idx] = t;
           const child: TaskItem = {

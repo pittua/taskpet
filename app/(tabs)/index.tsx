@@ -9,7 +9,7 @@ import type { TaskItem } from '@/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as Notifications from 'expo-notifications';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -114,17 +114,35 @@ export default function HomeScreen() {
   // Settings and tasks are loaded by their providers; this effect only handles notifications.
   }, []);
 
-  // --- Reschedule notifications whenever tasks change ---
+  // --- Reschedule notifications when notification-relevant fields change ---
+  // 通知に関係するフィールド（未完了・期限・通知タイミング・本文）だけの署名で
+  // 依存を絞り、並び替えのような無関係な変化では再スケジュールしない。
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+  const rescheduleSeq = useRef(0);
+  const notifySignature = useMemo(
+    () =>
+      tasks
+        .filter(t => !t.done && t.dueDate && t.notifyMin !== null)
+        .map(t => `${t.id}:${t.dueDate}:${t.notifyMin}:${t.text}`)
+        .join('|'),
+    [tasks]
+  );
+
   useEffect(() => {
+    // 連続発火時に古い処理が新しい処理の登録分を消さないよう、世代番号で打ち切る。
+    const seq = ++rescheduleSeq.current;
     (async () => {
       try {
         await Notifications.cancelAllScheduledNotificationsAsync();
+        if (seq !== rescheduleSeq.current) return;
         const nowTime = Date.now();
-        for (const t of tasks) {
+        for (const t of tasksRef.current) {
           if (t.done || !t.dueDate || t.notifyMin === null) continue;
           const fireTime = new Date(t.dueDate).getTime() - t.notifyMin * 60000;
           const seconds = Math.floor((fireTime - nowTime) / 1000);
           if (seconds > 60) {
+            if (seq !== rescheduleSeq.current) return;
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: 'タスク期限のお知らせ',
@@ -142,7 +160,7 @@ export default function HomeScreen() {
         Alert.alert('通知エラー', String(e));
       }
     })();
-  }, [tasks]);
+  }, [notifySignature]);
 
   // --- Generate welcome message when chat first opens ---
   useEffect(() => {
@@ -217,7 +235,12 @@ export default function HomeScreen() {
           <View style={{ flex: 1, gap: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
               <ThemedText type="title" style={{ fontSize: 30 }}>タスク</ThemedText>
-              <Pressable onPress={() => setIsSettingsOpen(true)} style={[styles.iconBtn, { borderColor: border, backgroundColor: cardBg }]}>
+              <Pressable
+                onPress={() => setIsSettingsOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="設定を開く"
+                style={[styles.iconBtn, { borderColor: border, backgroundColor: cardBg }]}
+              >
                 <ThemedText style={{ color: theme.text }}>⚙</ThemedText>
               </Pressable>
             </View>
@@ -298,7 +321,13 @@ export default function HomeScreen() {
                     isActive && { opacity: 0.9, elevation: 6 },
                   ]}
                 >
-                  <Pressable onPress={() => toggleDone(t.id)} style={{ marginRight: 12 }}>
+                  <Pressable
+                    onPress={() => toggleDone(t.id)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: t.done }}
+                    accessibilityLabel={`${t.text} を${t.done ? '未完了に戻す' : '完了にする'}`}
+                    style={{ marginRight: 12 }}
+                  >
                     <View style={[styles.check, { borderColor: t.done ? theme.tint : border, backgroundColor: t.done ? theme.tint : 'transparent' }]} />
                   </Pressable>
                   <Pressable style={{ flex: 1 }} onPress={() => openDetail(t)}>
@@ -313,6 +342,7 @@ export default function HomeScreen() {
                     onPressIn={onDragStart}
                     onPressOut={onDragEnd}
                     hitSlop={8}
+                    accessibilityLabel="ドラッグして並び替え"
                     style={{ paddingHorizontal: 10, paddingVertical: 8, marginLeft: 4 }}
                   >
                     <ThemedText style={{ color: muted, fontSize: 20 }}>≡</ThemedText>
@@ -468,10 +498,20 @@ export default function HomeScreen() {
                       <Pressable onPress={confirmDailyReport} style={[styles.smallBtn, { backgroundColor: theme.tint, paddingHorizontal: 10, paddingVertical: 8 }]}>
                         <ThemedText style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>📝日報</ThemedText>
                       </Pressable>
-                      <Pressable onPress={() => setIsChatExpanded(e => !e)} style={[styles.iconBtn, { borderColor: border }]}>
+                      <Pressable
+                        onPress={() => setIsChatExpanded(e => !e)}
+                        accessibilityRole="button"
+                        accessibilityLabel={isChatExpanded ? 'チャットを縮小' : 'チャットを拡大'}
+                        style={[styles.iconBtn, { borderColor: border }]}
+                      >
                         <ThemedText style={{ color: theme.text }}>{isChatExpanded ? '▼' : '▲'}</ThemedText>
                       </Pressable>
-                      <Pressable onPress={() => setIsChatOpen(false)} style={[styles.iconBtn, { borderColor: border }]}>
+                      <Pressable
+                        onPress={() => setIsChatOpen(false)}
+                        accessibilityRole="button"
+                        accessibilityLabel="チャットを閉じる"
+                        style={[styles.iconBtn, { borderColor: border }]}
+                      >
                         <ThemedText style={{ color: theme.text }}>✕</ThemedText>
                       </Pressable>
                     </View>

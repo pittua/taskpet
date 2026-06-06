@@ -3,7 +3,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTasks } from '@/hooks/use-tasks';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -27,7 +27,17 @@ export default function StatsScreen() {
   const cardBg = colorScheme === 'dark' ? '#1C1F21' : '#F3F5F7';
   const border = colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
   const muted = colorScheme === 'dark' ? '#aaa' : '#666';
-  const todayStr = new Date().toDateString();
+
+  // 画面を開いたまま日付を跨いでも「今日の達成」が切り替わるよう、
+  // 1分ごとに当日キーを見直す（変わった時だけ再描画）。
+  const [todayStr, setTodayStr] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = new Date().toDateString();
+      setTodayStr(prev => (prev === s ? prev : s));
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const stats = useMemo(() => {
     const total = tasks.length;

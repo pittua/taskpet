@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { withRetry } from '@/lib/ai-retry';
+import { getApiKey, setApiKey } from '@/lib/secure-key';
 import type { Greetings } from '@/types';
 
 const KEYS = {
@@ -11,7 +13,6 @@ const KEYS = {
   praises: 'set.praises',
   errorMsg: 'set.errorMsg',
   greetings: 'set.greetings',
-  apiKey: 'set.apiKey',
 };
 
 type SaveParams = {
@@ -34,6 +35,9 @@ function useSettingsState() {
   );
   const [greetings, setGreetings] = useState<Greetings | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // 現在保存済みの褒め言葉/あいさつ等を生成した時のプロンプト。
+  // これと一致していれば再生成（=Gemini呼び出し3回）をスキップする。
+  const lastGenPromptRef = useRef<string | null>(null);
 
   const genAI = useMemo(
     () => (geminiApiKey.trim() ? new GoogleGenerativeAI(geminiApiKey.trim()) : null),
@@ -50,10 +54,12 @@ function useSettingsState() {
         AsyncStorage.getItem(KEYS.praises),
         AsyncStorage.getItem(KEYS.errorMsg),
         AsyncStorage.getItem(KEYS.greetings),
-        AsyncStorage.getItem(KEYS.apiKey),
+        getApiKey(),
       ]);
       if (a) setAiAvatarUri(a);
       if (p) setCustomCharacterPrompt(p);
+      // 保存済みテキストはこのプロンプトから生成されたものとみなす（不要な再生成を防ぐ基準）。
+      lastGenPromptRef.current = p ?? '';
       if (c) setThemeColor(c);
       if (n) setAiName(n);
       if (key) setGeminiApiKey(key);
@@ -88,10 +94,12 @@ function useSettingsState() {
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', systemInstruction: sys });
 
       const [resPraise, resError, resGreet] = await Promise.all([
-        model.generateContent([{ text: 'タスク完了時にかける短い褒め言葉（10文字以内）を5つ、カンマ(,)区切りで出力して。例: ナイス！,えらい！,すごい！,お疲れ様！,完璧！' }]),
-        model.generateContent([{ text: '自分が通信エラーやシステムエラーで上手く返答できなかったときの謝罪セリフを1つ教えて。キャラクターの口調で、時間を置いてから再試行するように促して。長すぎず、1〜2文程度で。' }]),
-        model.generateContent([{ text: 'あなたのキャラクターになりきって、朝(5〜11時)、昼(11〜17時)、夜(17〜23時)、深夜(23〜5時)の挨拶を各2パターン、計8つ考えて。JSON形式で出力して。フォーマット: {"morning": ["...", "..."], "afternoon": ["...", "..."], "evening": ["...", "..."], "night": ["...", "..."]}' }]),
+        withRetry(() => model.generateContent([{ text: 'タスク完了時にかける短い褒め言葉（10文字以内）を5つ、カンマ(,)区切りで出力して。例: ナイス！,えらい！,すごい！,お疲れ様！,完璧！' }])),
+        withRetry(() => model.generateContent([{ text: '自分が通信エラーやシステムエラーで上手く返答できなかったときの謝罪セリフを1つ教えて。キャラクターの口調で、時間を置いてから再試行するように促して。長すぎず、1〜2文程度で。' }])),
+        withRetry(() => model.generateContent([{ text: 'あなたのキャラクターになりきって、朝(5〜11時)、昼(11〜17時)、夜(17〜23時)、深夜(23〜5時)の挨拶を各2パターン、計8つ考えて。JSON形式で出力して。フォーマット: {"morning": ["...", "..."], "afternoon": ["...", "..."], "evening": ["...", "..."], "night": ["...", "..."]}' }])),
       ]);
+      // 生成に成功したのでこのプロンプトを基準として記録（以降同じ内容では再生成しない）。
+      lastGenPromptRef.current = prompt;
 
       const list = resPraise.response.text().split(',').map(s => s.trim()).filter(s => s.length > 0);
       if (list.length >= 3) {
@@ -128,12 +136,16 @@ function useSettingsState() {
       AsyncStorage.setItem(KEYS.prompt, params.customCharacterPrompt),
       AsyncStorage.setItem(KEYS.color, params.themeColor),
       AsyncStorage.setItem(KEYS.name, params.aiName),
-      params.geminiApiKey.trim()
-        ? AsyncStorage.setItem(KEYS.apiKey, params.geminiApiKey.trim())
-        : AsyncStorage.removeItem(KEYS.apiKey),
+      setApiKey(params.geminiApiKey),
     ]);
-    generateBackgroundTexts(params.customCharacterPrompt);
-  }, [generateBackgroundTexts]);
+    // 褒め言葉・あいさつ等の再生成（Gemini 3 リクエスト）は、
+    // プロンプトが変わった時か、まだ生成できていない時だけ行う。
+    const promptChanged = params.customCharacterPrompt !== lastGenPromptRef.current;
+    const missingTexts = characterPraises.length === 0 || !greetings;
+    if (promptChanged || missingTexts) {
+      generateBackgroundTexts(params.customCharacterPrompt);
+    }
+  }, [generateBackgroundTexts, characterPraises, greetings]);
 
   return {
     themeColor, setThemeColor,
