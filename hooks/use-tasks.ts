@@ -5,6 +5,9 @@ import { useSettings } from '@/hooks/use-settings';
 
 const DEFAULT_PRAISES = ['お疲れ様！', 'ナイス！', 'その調子！', 'えらい！', '素晴らしい！'];
 
+// 完了ログ（日付別の完了数）のキー。ローカル日付ごとに 1 件。
+const dayKey = (d: Date | string | number) => new Date(d).toDateString();
+
 // 繰り返しタスクの次回期限を計算する。元の時刻（時分）を保ったまま、
 // 今より未来になるまで間隔ぶん進める（期限超過タスクを完了しても次回が過去にならない）。
 function computeNextDue(dueIso: string, recurring: 'daily' | 'weekly'): Date {
@@ -21,6 +24,8 @@ function useTasksState() {
   const { characterPraises } = useSettings();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  // 日付別の累積完了数。タスクを削除しても減らない「達成の記録」。
+  const [completedLog, setCompletedLog] = useState<Record<string, number>>({});
 
   const loadTasks = useCallback(async () => {
     try {
@@ -32,6 +37,27 @@ function useTasksState() {
     } catch (e) {
       console.error('Tasks parse error', e);
     }
+  }, []);
+
+  const loadCompletedLog = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem('@completedLog');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) setCompletedLog(parsed);
+      }
+    } catch (e) {
+      console.error('completedLog parse error', e);
+    }
+  }, []);
+
+  // 完了ログを増減する。delta は +1（完了）/ -1（完了取り消し）。0 未満にはしない。
+  const bumpCompletedLog = useCallback((key: string, delta: number) => {
+    setCompletedLog(prev => {
+      const next = { ...prev, [key]: Math.max(0, (prev[key] || 0) + delta) };
+      AsyncStorage.setItem('@completedLog', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const saveTasks = useCallback(async (newTasks: TaskItem[]) => {
@@ -94,14 +120,23 @@ function useTasksState() {
 
   const toggleDone = useCallback((id: string) => {
     let praise = false;
+    let logDelta: { key: string; delta: number } | null = null;
     setTasks(prev => {
       const next = [...prev];
       const idx = next.findIndex(t => t.id === id);
       if (idx === -1) return prev;
+      const prevCompletedAt = next[idx].completedAt;
       const t = { ...next[idx] };
       t.done = !t.done;
       t.completedAt = t.done ? new Date().toISOString() : null;
       next[idx] = t;
+
+      // 累積完了ログの増減（タスク配列とは独立して記録する）。
+      if (t.done) {
+        logDelta = { key: dayKey(t.completedAt!), delta: 1 };
+      } else if (prevCompletedAt) {
+        logDelta = { key: dayKey(prevCompletedAt), delta: -1 };
+      }
 
       if (t.done) {
         praise = true;
@@ -132,8 +167,10 @@ function useTasksState() {
       AsyncStorage.setItem('@tasks', JSON.stringify(next));
       return next;
     });
+    const ld = logDelta as { key: string; delta: number } | null;
+    if (ld) bumpCompletedLog(ld.key, ld.delta);
     if (praise) showToastPraise();
-  }, [showToastPraise]);
+  }, [showToastPraise, bumpCompletedLog]);
 
   const updateTask = useCallback((updated: TaskItem) => {
     setTasks(prev => {
@@ -146,7 +183,9 @@ function useTasksState() {
   return {
     tasks,
     toastMsg,
+    completedLog,
     loadTasks,
+    loadCompletedLog,
     saveTasks,
     addTask,
     deleteTask,
@@ -162,11 +201,12 @@ const TasksContext = createContext<TasksContextValue | null>(null);
 
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const value = useTasksState();
-  const { loadTasks } = value;
+  const { loadTasks, loadCompletedLog } = value;
 
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+    loadCompletedLog();
+  }, [loadTasks, loadCompletedLog]);
 
   return React.createElement(TasksContext.Provider, { value }, children);
 }

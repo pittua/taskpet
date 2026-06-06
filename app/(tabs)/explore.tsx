@@ -11,7 +11,7 @@ export default function StatsScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   // Tasks are shared via TasksProvider, so the list stays in sync automatically.
-  const { tasks } = useTasks();
+  const { tasks, completedLog } = useTasks();
 
   const cardBg = colorScheme === 'dark' ? '#1C1F21' : '#F3F5F7';
   const border = colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
@@ -22,15 +22,17 @@ export default function StatsScreen() {
     const total = tasks.length;
     const done = tasks.filter(t => t.done).length;
     const pending = total - done;
-    const doneToday = tasks.filter(t => t.done && t.completedAt && new Date(t.completedAt).toDateString() === todayStr).length;
+    // 今日の達成・累計は完了ログ（永続）から。タスクを削除しても減らない。
+    const doneToday = completedLog[todayStr] ?? 0;
+    const totalCompleted = Object.values(completedLog).reduce((a, b) => a + b, 0);
     const overdue = tasks.filter(t => !t.done && t.dueDate && new Date(t.dueDate) < new Date()).length;
     const rate = total > 0 ? Math.round((done / total) * 100) : 0;
     const recentDone = tasks
       .filter(t => t.done && t.completedAt)
       .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
       .slice(0, 5);
-    return { total, done, pending, doneToday, overdue, rate, recentDone };
-  }, [tasks, todayStr]);
+    return { total, done, pending, doneToday, totalCompleted, overdue, rate, recentDone };
+  }, [tasks, completedLog, todayStr]);
 
   return (
     <ThemedView style={{ flex: 1 }}>
@@ -38,28 +40,37 @@ export default function StatsScreen() {
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}>
           <ThemedText type="title" style={{ marginTop: 15, fontSize: 30 }}>統計</ThemedText>
 
-          {/* Today's achievement */}
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-            <ThemedText style={{ color: muted, fontSize: 13 }}>今日の達成</ThemedText>
-            <ThemedText style={{ fontSize: 48, fontWeight: 'bold', color: theme.tint, marginTop: 4 }}>
-              {stats.doneToday}
-            </ThemedText>
-            <ThemedText style={{ color: muted }}>タスク完了</ThemedText>
+          {/* Today's & all-time achievement (from the persistent completion log) */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}>
+              <ThemedText style={{ color: muted, fontSize: 13 }}>今日の達成</ThemedText>
+              <ThemedText style={{ fontSize: 44, lineHeight: 52, fontWeight: 'bold', color: theme.tint, marginTop: 4 }}>
+                {stats.doneToday}
+              </ThemedText>
+              <ThemedText style={{ color: muted }}>タスク完了</ThemedText>
+            </View>
+            <View style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}>
+              <ThemedText style={{ color: muted, fontSize: 13 }}>累計完了</ThemedText>
+              <ThemedText style={{ fontSize: 44, lineHeight: 52, fontWeight: 'bold', color: '#4CAF50', marginTop: 4 }}>
+                {stats.totalCompleted}
+              </ThemedText>
+              <ThemedText style={{ color: muted }}>これまで</ThemedText>
+            </View>
           </View>
 
           {/* Counts row */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <View style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}>
               <ThemedText style={{ color: muted, fontSize: 12 }}>総タスク</ThemedText>
-              <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: theme.text }}>{stats.total}</ThemedText>
+              <ThemedText style={{ fontSize: 28, lineHeight: 34, fontWeight: 'bold', color: theme.text }}>{stats.total}</ThemedText>
             </View>
             <View style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}>
               <ThemedText style={{ color: muted, fontSize: 12 }}>完了</ThemedText>
-              <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: '#4CAF50' }}>{stats.done}</ThemedText>
+              <ThemedText style={{ fontSize: 28, lineHeight: 34, fontWeight: 'bold', color: '#4CAF50' }}>{stats.done}</ThemedText>
             </View>
             <View style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}>
               <ThemedText style={{ color: muted, fontSize: 12 }}>未完了</ThemedText>
-              <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: theme.text }}>{stats.pending}</ThemedText>
+              <ThemedText style={{ fontSize: 28, lineHeight: 34, fontWeight: 'bold', color: theme.text }}>{stats.pending}</ThemedText>
             </View>
           </View>
 
