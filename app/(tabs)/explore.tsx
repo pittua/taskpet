@@ -4,14 +4,25 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTasks } from '@/hooks/use-tasks';
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function StatsScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   // Tasks are shared via TasksProvider, so the list stays in sync automatically.
-  const { tasks, completedLog } = useTasks();
+  const { tasks, completedLog, resetCompletedLog } = useTasks();
+
+  const confirmResetTotal = () => {
+    Alert.alert(
+      '累計完了をリセット',
+      'これまでの累計完了数（今日の達成も含む）をすべて0に戻します。タスク自体は削除されません。よろしいですか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'リセット', style: 'destructive', onPress: () => resetCompletedLog() },
+      ]
+    );
+  };
 
   const cardBg = colorScheme === 'dark' ? '#1C1F21' : '#F3F5F7';
   const border = colorScheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
@@ -49,13 +60,17 @@ export default function StatsScreen() {
               </ThemedText>
               <ThemedText style={{ color: muted }}>タスク完了</ThemedText>
             </View>
-            <View style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}>
+            <Pressable
+              onLongPress={confirmResetTotal}
+              delayLongPress={500}
+              style={[styles.card, { flex: 1, backgroundColor: cardBg, borderColor: border }]}
+            >
               <ThemedText style={{ color: muted, fontSize: 13 }}>累計完了</ThemedText>
               <ThemedText style={{ fontSize: 44, lineHeight: 52, fontWeight: 'bold', color: '#4CAF50', marginTop: 4 }}>
                 {stats.totalCompleted}
               </ThemedText>
-              <ThemedText style={{ color: muted }}>これまで</ThemedText>
-            </View>
+              <ThemedText style={{ color: muted, fontSize: 11 }}>これまで（長押しでリセット）</ThemedText>
+            </Pressable>
           </View>
 
           {/* Counts row */}

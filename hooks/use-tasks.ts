@@ -60,6 +60,12 @@ function useTasksState() {
     });
   }, []);
 
+  // 累計（完了ログ）を全消去する。統計画面からの手動リセット用。
+  const resetCompletedLog = useCallback(() => {
+    setCompletedLog({});
+    AsyncStorage.setItem('@completedLog', JSON.stringify({}));
+  }, []);
+
   const saveTasks = useCallback(async (newTasks: TaskItem[]) => {
     setTasks(newTasks);
     await AsyncStorage.setItem('@tasks', JSON.stringify(newTasks));
@@ -192,6 +198,7 @@ function useTasksState() {
     reorderTasks,
     toggleDone,
     updateTask,
+    resetCompletedLog,
   };
 }
 
