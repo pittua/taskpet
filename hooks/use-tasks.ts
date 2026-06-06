@@ -5,6 +5,18 @@ import { useSettings } from '@/hooks/use-settings';
 
 const DEFAULT_PRAISES = ['お疲れ様！', 'ナイス！', 'その調子！', 'えらい！', '素晴らしい！'];
 
+// 繰り返しタスクの次回期限を計算する。元の時刻（時分）を保ったまま、
+// 今より未来になるまで間隔ぶん進める（期限超過タスクを完了しても次回が過去にならない）。
+function computeNextDue(dueIso: string, recurring: 'daily' | 'weekly'): Date {
+  const d = new Date(dueIso);
+  const step = recurring === 'weekly' ? 7 : 1;
+  const now = Date.now();
+  do {
+    d.setDate(d.getDate() + step);
+  } while (d.getTime() <= now);
+  return d;
+}
+
 function useTasksState() {
   const { characterPraises } = useSettings();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -62,13 +74,19 @@ function useTasksState() {
     });
   }, []);
 
-  const moveTask = useCallback((index: number, direction: 'up' | 'down') => {
+  // ドラッグ&ドロップでの並び替え: fromIndex の項目を取り出し toIndex に挿入する。
+  const reorderTasks = useCallback((fromIndex: number, toIndex: number) => {
     setTasks(prev => {
-      if (direction === 'up' && index === 0) return prev;
-      if (direction === 'down' && index === prev.length - 1) return prev;
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 || toIndex < 0 ||
+        fromIndex >= prev.length || toIndex >= prev.length
+      ) {
+        return prev;
+      }
       const next = [...prev];
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
       AsyncStorage.setItem('@tasks', JSON.stringify(next));
       return next;
     });
@@ -87,12 +105,29 @@ function useTasksState() {
 
       if (t.done) {
         praise = true;
-        if (t.recurring !== 'none' && t.dueDate) {
-          const nextDue = new Date(t.dueDate);
-          if (t.recurring === 'daily') nextDue.setDate(nextDue.getDate() + 1);
-          if (t.recurring === 'weekly') nextDue.setDate(nextDue.getDate() + 7);
-          next.push({ ...t, id: Date.now().toString(), done: false, dueDate: nextDue.toISOString(), completedAt: null });
+        // 繰り返しタスクの完了: 次回分を生成する。
+        // recurredChildId があれば生成済みなので二重生成しない。
+        if (t.recurring !== 'none' && t.dueDate && !t.recurredChildId) {
+          const childId = Date.now().toString();
+          t.recurredChildId = childId;
+          next[idx] = t;
+          const child: TaskItem = {
+            ...t,
+            id: childId,
+            done: false,
+            dueDate: computeNextDue(t.dueDate, t.recurring).toISOString(),
+            completedAt: null,
+            recurredChildId: null,
+          };
+          // 末尾ではなく元タスクの直後に挿入し、手動の並び順を保つ。
+          next.splice(idx + 1, 0, child);
         }
+      } else if (t.recurredChildId) {
+        // 未完了に戻したら、自動生成した次回分が手付かず（未完了）なら撤回する。
+        const childId = t.recurredChildId;
+        t.recurredChildId = null; // t は既に next[] 内にあるので、ここでの代入で反映される
+        const childIdx = next.findIndex(x => x.id === childId);
+        if (childIdx !== -1 && !next[childIdx].done) next.splice(childIdx, 1);
       }
       AsyncStorage.setItem('@tasks', JSON.stringify(next));
       return next;
@@ -115,7 +150,7 @@ function useTasksState() {
     saveTasks,
     addTask,
     deleteTask,
-    moveTask,
+    reorderTasks,
     toggleDone,
     updateTask,
   };

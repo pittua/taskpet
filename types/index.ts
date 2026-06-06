@@ -9,6 +9,8 @@ export type TaskItem = {
   completedAt: string | null;
   advice?: string | null;
   adviceKey?: string | null;
+  // 繰り返しタスク完了時に生成した「次回分」の id。二重生成防止と、未完了化時の撤回に使う。
+  recurredChildId?: string | null;
 };
 
 export type ChatMessage = {

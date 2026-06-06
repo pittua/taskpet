@@ -26,6 +26,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DragList, { type DragListRenderItemInfo } from 'react-native-draglist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import 'react-native-url-polyfill/auto';
 
@@ -61,7 +62,7 @@ export default function HomeScreen() {
   const theme = { ...baseTheme, tint: themeColor };
   const effPrompt = customCharacterPrompt.trim() || 'あなたは私専用の優秀なアシスタントです。';
 
-  const { tasks, toastMsg, addTask, deleteTask, moveTask, toggleDone, updateTask } = useTasks();
+  const { tasks, toastMsg, addTask, deleteTask, reorderTasks, toggleDone, updateTask } = useTasks();
 
   const {
     chatMessages, isSending, detailComment, setDetailComment, chatListRef,
@@ -284,12 +285,19 @@ export default function HomeScreen() {
               />
             )}
 
-            <FlatList
+            <DragList
               data={tasks}
               keyExtractor={t => t.id}
               contentContainerStyle={{ gap: 10, paddingBottom: 100 }}
-              renderItem={({ item: t, index }) => (
-                <View style={[styles.card, { backgroundColor: cardBg, borderColor: border, flexDirection: 'row', alignItems: 'center' }]}>
+              onReordered={(from, to) => reorderTasks(from, to)}
+              renderItem={({ item: t, onDragStart, onDragEnd, isActive }: DragListRenderItemInfo<TaskItem>) => (
+                <View
+                  style={[
+                    styles.card,
+                    { backgroundColor: cardBg, borderColor: isActive ? theme.tint : border, flexDirection: 'row', alignItems: 'center' },
+                    isActive && { opacity: 0.9, elevation: 6 },
+                  ]}
+                >
                   <Pressable onPress={() => toggleDone(t.id)} style={{ marginRight: 12 }}>
                     <View style={[styles.check, { borderColor: t.done ? theme.tint : border, backgroundColor: t.done ? theme.tint : 'transparent' }]} />
                   </Pressable>
@@ -300,14 +308,15 @@ export default function HomeScreen() {
                       {t.recurring !== 'none' && <ThemedText style={{ color: theme.tint, fontSize: 12 }}>🔁 {t.recurring === 'daily' ? '毎日' : '毎週'}</ThemedText>}
                     </View>
                   </Pressable>
-                  <View style={{ flexDirection: 'column', gap: 6, marginLeft: 8 }}>
-                    <Pressable onPress={() => moveTask(index, 'up')} disabled={index === 0} style={{ paddingHorizontal: 8, paddingVertical: 4, opacity: index === 0 ? 0.2 : 0.8 }}>
-                      <ThemedText style={{ color: theme.text, fontSize: 14 }}>▲</ThemedText>
-                    </Pressable>
-                    <Pressable onPress={() => moveTask(index, 'down')} disabled={index === tasks.length - 1} style={{ paddingHorizontal: 8, paddingVertical: 4, opacity: index === tasks.length - 1 ? 0.2 : 0.8 }}>
-                      <ThemedText style={{ color: theme.text, fontSize: 14 }}>▼</ThemedText>
-                    </Pressable>
-                  </View>
+                  {/* ドラッグハンドル: 長押し/押下でドラッグ開始 */}
+                  <Pressable
+                    onPressIn={onDragStart}
+                    onPressOut={onDragEnd}
+                    hitSlop={8}
+                    style={{ paddingHorizontal: 10, paddingVertical: 8, marginLeft: 4 }}
+                  >
+                    <ThemedText style={{ color: muted, fontSize: 20 }}>≡</ThemedText>
+                  </Pressable>
                 </View>
               )}
             />
