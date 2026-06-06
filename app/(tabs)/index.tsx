@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-import { useChat } from '@/hooks/use-chat';
+import { adviceKeyOf, useChat } from '@/hooks/use-chat';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettings } from '@/hooks/use-settings';
 import { useTasks } from '@/hooks/use-tasks';
@@ -155,7 +155,8 @@ export default function HomeScreen() {
 
   const openDetail = (t: TaskItem) => {
     setSelectedTask(t);
-    setDetailComment('「🤖 アドバイスをもらう」ボタンを押してね');
+    if (t.advice && t.adviceKey === adviceKeyOf(t)) setDetailComment(t.advice);
+    else setDetailComment('「🤖 アドバイスをもらう」ボタンを押してね');
   };
 
   const saveDetail = () => {
@@ -328,7 +329,7 @@ export default function HomeScreen() {
         {/* Task Detail Modal */}
         <Modal visible={!!selectedTask} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setSelectedTask(null)}>
           <Pressable style={styles.modalOverlay} onPress={() => setSelectedTask(null)}>
-            <Pressable onPress={e => e.stopPropagation()} style={{ width: '90%', maxHeight: '80%' }}>
+            <Pressable onPress={e => e.stopPropagation()} style={{ width: '90%', maxHeight: '80%', alignSelf: 'center' }}>
               <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={[styles.detailBox, { backgroundColor: cardBg, borderColor: border, margin: 0 }]}
@@ -366,7 +367,15 @@ export default function HomeScreen() {
                       <View style={[styles.card, { backgroundColor: bg, borderColor: border, marginTop: 15 }]}>
                         <ThemedText style={{ color: theme.tint, fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>💬 {aiName}からのコメント</ThemedText>
                         <Pressable
-                          onPress={() => fetchDetailComment(selectedTask)}
+                          onPress={async () => {
+                            const r = await fetchDetailComment(selectedTask);
+                            if (r) {
+                              setSelectedTask(prev => (prev ? { ...prev, advice: r.text, adviceKey: r.key } : prev));
+                              // 保存済みタスクに advice だけマージして即永続化（「閉じる」してもキャッシュは残る）
+                              const stored = tasks.find(t => t.id === selectedTask.id);
+                              if (stored) updateTask({ ...stored, advice: r.text, adviceKey: r.key });
+                            }
+                          }}
                           style={[styles.smallBtn, { marginBottom: 10, backgroundColor: theme.tint, alignSelf: 'flex-start' }]}
                         >
                           <ThemedText style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>🤖 アドバイスをもらう</ThemedText>
@@ -398,7 +407,7 @@ export default function HomeScreen() {
         {/* Notify Picker Modal */}
         <Modal visible={showNotifyModal} animationType="fade" transparent statusBarTranslucent onRequestClose={() => setShowNotifyModal(false)}>
           <Pressable style={styles.modalOverlay} onPress={() => setShowNotifyModal(false)}>
-            <Pressable onPress={e => e.stopPropagation()} style={{ width: '90%', maxHeight: '60%' }}>
+            <Pressable onPress={e => e.stopPropagation()} style={{ width: '90%', maxHeight: '60%', alignSelf: 'center' }}>
               <View style={[styles.detailBox, { backgroundColor: cardBg, borderColor: border, margin: 0 }]}>
                 <ScrollView contentContainerStyle={{ padding: 20 }}>
                   <ThemedText type="subtitle" style={{ marginBottom: 10 }}>通知のタイミング</ThemedText>

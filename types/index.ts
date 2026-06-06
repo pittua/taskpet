@@ -7,6 +7,8 @@ export type TaskItem = {
   notifyMin: number | null;
   recurring: 'none' | 'daily' | 'weekly';
   completedAt: string | null;
+  advice?: string | null;
+  adviceKey?: string | null;
 };
 
 export type ChatMessage = {
