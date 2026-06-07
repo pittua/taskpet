@@ -28,6 +28,11 @@
 - [react-native-draglist](https://www.npmjs.com/package/react-native-draglist)（並び替え）
 - AsyncStorage によるローカル永続化（サーバー・ログイン不要）
 
+## 📦 APK の入手（ビルド不要で使いたい人向け）
+
+ビルド済みの APK は [Releases](https://github.com/pittua/taskpet/releases) から入手できます。
+ダウンロードして Android 端末にインストール（提供元不明アプリの許可が必要）してください。各自で Gemini API キーの設定が必要です。
+
 ## 🔑 Gemini API キーについて
 
 このアプリは **各ユーザーが自分の Gemini API キーを用意** して使う設計です（キーはアプリに同梱されません。端末内にのみ保存されます）。
@@ -62,11 +67,6 @@ npx expo run:android
 ```
 
 起動後、アプリの設定画面で Gemini API キーを入力してください。
-
-## 📦 APK の入手（ビルド不要で使いたい人向け）
-
-ビルド済みの APK は [Releases](https://github.com/pittua/taskpet/releases) から入手できます。
-ダウンロードして Android 端末にインストール（提供元不明アプリの許可が必要）してください。各自で Gemini API キーの設定が必要です。
 
 ## 📄 ライセンス
 
